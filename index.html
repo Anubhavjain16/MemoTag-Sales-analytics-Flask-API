@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MemoTag Sales & Marketing Dashboard</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+        }
+
+        .upload-section {
+            background: #ffffff;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            margin-bottom: 40px;
+            text-align: center;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: #3498db;
+            color: white;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 0;
+            transition: background-color 0.3s;
+            font-size: 16px;
+        }
+
+        .file-label:hover {
+            background-color: #2980b9;
+        }
+
+        .selected-file {
+            margin: 10px 0;
+            color: #777;
+            font-size: 14px;
+        }
+
+        .upload-button {
+            display: inline-block;
+            padding: 12px 25px;
+            background-color: #2ecc71;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 0;
+            font-size: 16px;
+            transition: background-color 0.3s;
+        }
+
+        .upload-button:hover {
+            background-color: #27ae60;
+        }
+
+        .disabled {
+            background-color: #bdc3c7;
+            cursor: not-allowed;
+        }
+
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 30px;
+        }
+
+        .card {
+            background-color: #ffffff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            color: #2c3e50;
+        }
+
+        .content {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #ecf0f1;
+            border-radius: 5px;
+            min-height: 100px;
+        }
+
+        .error {
+            color: #e74c3c;
+            font-size: 16px;
+        }
+
+        .spinner {
+            border: 2px solid #3498db;
+            border-radius: 50%;
+            border-top: 2px solid transparent;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>MemoTag Sales & Marketing Dashboard</h1>
+
+        <div class="upload-section">
+            <h2>Upload Sales Data</h2>
+            <input type="file" id="csvFile" accept=".csv" class="file-input">
+            <label for="csvFile" class="file-label">Choose CSV File</label>
+            <div id="selectedFile" class="selected-file">No file selected</div>
+            <button onclick="uploadFile()" id="uploadButton" class="upload-button disabled">Upload Data</button>
+        </div>
+        
+        <div class="card-grid">
+            <!-- Sales Recommendations Card -->
+            <div class="card">
+                <h2>Sales Recommendations</h2>
+                <div id="recommendationsContent" class="content"></div>
+            </div>
+
+            <!-- Sales Strategies Card -->
+            <div class="card">
+                <h2>Sales Strategies</h2>
+                <div id="strategiesContent" class="content"></div>
+            </div>
+
+            <!-- Marketing Funnels Card -->
+            <div class="card">
+                <h2>Marketing Funnels</h2>
+                <div id="funnelsContent" class="content"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let dataAnalysis = null;
+
+        document.getElementById('csvFile').addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name || 'No file selected';
+            document.getElementById('selectedFile').textContent = fileName;
+            
+            const uploadButton = document.getElementById('uploadButton');
+            uploadButton.classList.toggle('disabled', !e.target.files[0]);
+            uploadButton.disabled = !e.target.files[0];
+        });
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('csvFile');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Please select a CSV file first');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const uploadButton = document.getElementById('uploadButton');
+            uploadButton.disabled = true;
+            uploadButton.innerHTML = '<span class="spinner"></span>Uploading...';
+
+            try {
+                const response = await fetch('/api/upload-csv', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    dataAnalysis = result.analysis;
+                    alert('File uploaded and analyzed successfully!');
+                    generateInsights('sales-recommendations', 'recommendationsContent');
+                    generateInsights('sales-strategies', 'strategiesContent');
+                    generateInsights('marketing-funnels', 'funnelsContent');
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                alert('Error uploading file: ' + error.message);
+            } finally {
+                uploadButton.disabled = false;
+                uploadButton.textContent = 'Upload Data';
+            }
+        }
+
+        async function generateInsights(endpoint, contentId) {
+            if (!dataAnalysis) {
+                alert('Please upload and analyze data first');
+                return;
+            }
+
+            const contentDiv = document.getElementById(contentId);
+            contentDiv.innerHTML = '<div class="spinner"></div>Generating...';
+
+            try {
+                const response = await fetch(`/api/${endpoint}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ analysis: dataAnalysis })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    contentDiv.innerHTML = formatContent(data.data);
+                } else {
+                    contentDiv.innerHTML = `<div class="error">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                contentDiv.innerHTML = `<div class="error">Error: ${error.message}</div>`;
+            }
+        }
+
+        function formatContent(data) {
+            return data
+                .replace(/\*/g, '') // Remove all asterisks
+                .split('\n')
+                .map(line => `<p>${line.trim()}</p>`)
+                .join('');
+        }
+    </script>
+</body>
+</html>
